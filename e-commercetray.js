@@ -1,24 +1,43 @@
-if (pageCategory === "catalogo") {
-  var g_items = {{listProducts}}.map(function(product, index) {
-    return {
-      'item_id': product.idProduct,
-      'item_name': product.nameProduct,
-      'discount': Number(product.price) - Number(product.sellPrice),
-      'index': index,
-      'item_brand': product.brand,
-      'item_category': category,
-      'price': Number(product.price)
-    };
-  });
-
-  dataLayer.push({
-    'ecommerce': {
-      'items': g_items
-    }
-  });
+// Utility function to calculate discount
+function calculateDiscount(price, sellPrice) {
+  return Number(price) - Number(sellPrice);
 }
 
+// Utility function to extract product information
+function extractProductInfo(product) {
+  return {
+    'id': product.idProduct,
+    'google_business_vertical': 'retail'
+  };
+}
+
+// Utility function to extract product IDs and calculate total value
+function extractProductIDsAndValue(products) {
+  var productIDs = [];
+  var value = 0;
+
+  products.forEach(function (product) {
+    var price = Number(product.price);
+
+    productIDs.push(product.idProduct);
+    value += price;
+  });
+
+  return {
+    productIDs: productIDs,
+    value: value
+  };
+}
+
+//PRODUCT PAGE
 if (pageCategory === "Produto") {
+  var googleItems = [
+    {
+      'id': idProduct,
+      'google_business_vertical': 'retail'
+    }
+  ];
+
   dataLayer.push({
     'ecommerce': {
       'items': [
@@ -26,7 +45,7 @@ if (pageCategory === "Produto") {
           'item_id': idProduct,
           'item_name': nameProduct,
           'currency': "BRL",
-          'discount': Number(price) - Number(priceSell),
+          'discount': calculateDiscount(price, priceSell),
           'item_brand': brand,
           'item_category': category,
           'price': Number(price)
@@ -36,75 +55,39 @@ if (pageCategory === "Produto") {
   });
 }
 
-if (pageCategory === "EasyCheckout_OrderPlaced") {
-  var googleEcommerce = Object.assign({}, ecommerce);
-  delete googleEcommerce.checkout;
-  window.dataLayer.push({
-    'event': 'purchase_fix',
-    'ecommerce': googleEcommerce,
-    'fix': true
-  });
-}
-///separar em scripts
-var googleItems = [];
-var googleIDs = [];
-var googleGetValue = 0;
-var googleGetCategory = '';
-
-//PRODUCT PAGE
-//view_item
-if (pageCategory === "Produto") {
-  var googleGetEvent = 'view_item';
-  var googlePageType = 'product';
-  var googleGetValue = Number(price);
-  var googleGetProductID = idProduct;
-  var googleGetCategory = dataLayer[0].category;
-
-  googleItems.push({
-    'id': googleGetProductID,
-    'google_business_vertical': 'retail'
-  });
-  googleIDs.push(googleGetProductID);
-}
-
 //CATEGORY PAGE and SEARCH PAGE
-//view_item_list
-//view_search_results
 if (pageCategory === "catalogo" || pageCategory === "Busca") {
-  var googleGetProductID = listProducts;
-  if (pageCategory === "catalogo") {
-    var googleGetEvent = 'view_item_list';
-    var googlePageType = 'category';
-    var googleGetCategory = dataLayer[0].category;
-  } else if (pageCategory === "Busca") {
-    var googleGetEvent = 'view_search_results';
-    var googlePageType = 'search';
-  }
+  var googleItems = [];
+  var googleGetValue = 0;
 
-  googleGetProductID.forEach(function(product) {
-    googleItems.push({
-      'id': product.idProduct,
-      'google_business_vertical': 'retail'
-    });
-    googleIDs.push(product.idProduct);
+  listProducts.forEach(function (product) {
+    googleItems.push(extractProductInfo(product));
     googleGetValue += Number(product.price);
   });
+
+  if (pageCategory === "catalogo") {
+    dataLayer.push({
+      'ecommerce': {
+        'items': googleItems
+      }
+    });
+  } else if (pageCategory === "Busca") {
+    dataLayer.push({
+      'event': 'view_search_results',
+      'ecommerce': {
+        'items': googleItems
+      }
+    });
+  }
 }
 
 //CART and PURCHASE
-//add_to_cart
-//purchase
 if (pageCategory === "Carrinho" || pageCategory === "EasyCheckout_OrderPlaced") {
-  if (pageCategory === "Carrinho") {
-    var googleGetEvent = 'add_to_cart';
-    var googlePageType = 'cart';
-  }
-  if (pageCategory === "EasyCheckout_OrderPlaced") {
-    var googleGetEvent = 'purchase';
-    var googlePageType = 'purchase';
-  }
+  var googleItems = [];
+  var googleGetEvent;
+  var googlePageType;
   var googleGetProductID = [];
-  var googleGetValue = [];
+  var googleGetValue = 0;
 
   for (var i = 0; i < dataLayer.length; i++) {
     if (dataLayer[i].ecommerce) {
@@ -112,21 +95,34 @@ if (pageCategory === "Carrinho" || pageCategory === "EasyCheckout_OrderPlaced") 
     }
   }
 
-  googleGetProductID[0].checkout.products.forEach(function(product) {
-    googleItems.push({
-      'id': product.id,
-      'google_business_vertical': 'retail'
-    });
-    googleIDs.push(product.id);
+  googleGetProductID[0].checkout.products.forEach(function (product) {
+    googleItems.push(extractProductInfo(product));
     googleGetValue += Number(product.price * product.quantity);
   });
-}
 
-if (googleGetEvent || googleGetValue || googleItems.length > 0) {
-  dataLayer.push({
-    'event': googleGetEvent,
-    'remarketing': true,
-    'value': Number(googleGetValue),
-    'items': googleItems
-  });
+  if (pageCategory === "Carrinho") {
+    googleGetEvent = 'add_to_cart';
+    googlePageType = 'cart';
+  } else if (pageCategory === "EasyCheckout_OrderPlaced") {
+    googleGetEvent = 'purchase';
+    googlePageType = 'purchase';
+
+    var googleEcommerce = Object.assign({}, ecommerce);
+    delete googleEcommerce.checkout;
+
+    dataLayer.push({
+      'event': 'purchase_fix',
+      'ecommerce': googleEcommerce,
+      'fix': true
+    });
+  }
+
+  if (googleGetEvent || googleGetValue || googleItems.length > 0) {
+    dataLayer.push({
+      'event': googleGetEvent,
+      'remarketing': true,
+      'value': Number(googleGetValue),
+      'items': googleItems
+    });
+  }
 }

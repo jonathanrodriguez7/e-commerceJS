@@ -1,27 +1,54 @@
 var aux = true;
+function trackViewEvent(item) {
+  var items = [{
+    'item_name': item.productName,
+    'price': item.productPriceTo,
+    'item_id': item.productId,
+    'currency': 'BRL',
+    'item_category': item.productCategoryName
+  }];
+
+  dataLayer.push({
+    'event': 'view_item',
+    'currency': 'BRL',
+    'items': items
+  });
+}
+
+function trackDetailViewEvent(products) {
+  dataLayer.push({
+    'event': 'view_item',
+    'currency': 'BRL',
+    'items': products
+  });
+  aux = false;
+}
+
+function trackCheckoutEvent(products) {
+  dataLayer.push({
+    'event': 'begin_checkout',
+    'currency': 'BRL',
+    'items': products
+  });
+  clearInterval(intervalo);
+  console.log('stop time');
+}
+
+function trackAddToCartEvent(products) {
+  dataLayer.push({
+    'event': 'add_to_cart',
+    'currency': 'BRL',
+    'items': products
+  });
+  aux = false;
+}
 
 dataLayer.forEach(function(data) {
   if (data.pageCategory === 'Product') {
-    var items = [{
-      'item_name': data.productName,
-      'price': data.productPriceTo,
-      'item_id': data.productId,
-      'currency': 'BRL',
-      'item_category': data.productCategoryName
-    }];
-    dataLayer.push({
-      'event': 'view_item',
-      'currency': 'BRL',
-      'items': items
-    });
+    trackViewEvent(data);
   } else if ((data.event === "productView" || data.event === "productDetail") && aux) {
     if (data.event === "productDetail") {
-      dataLayer.push({
-        'event': 'view_item',
-        'currency': 'BRL',
-        'items': data.ecommerce.detail.products
-      });
-      aux = false;
+      trackDetailViewEvent(data.ecommerce.detail.products);
     }
   } else if (window.location.pathname.includes('/p')) {
     var items = [{
@@ -40,13 +67,7 @@ dataLayer.forEach(function(data) {
 var intervalo = setInterval(function() {
   dataLayer.forEach(function(data) {
     if (data.event === "payment") {
-      dataLayer.push({
-        'event': 'begin_checkout',
-        'currency': 'BRL',
-        'items': data.ecommerce.checkout.products
-      });
-      clearInterval(intervalo);
-      console.log('stop time');
+      trackCheckoutEvent(data.ecommerce.checkout.products);
     }
   });
 }, 4000);
@@ -55,20 +76,6 @@ aux = true;
 
 dataLayer.forEach(function(data) {
   if ((data.event === "cart" || data.event === "cartLoaded") && aux) {
-    if (data.event === "cart" && aux) {
-      dataLayer.push({
-        'event': 'add_to_cart',
-        'currency': 'BRL',
-        'items': data.ecommerce.checkout.products
-      });
-      aux = false;
-    } else if (data.event === "cartLoaded" && aux) {
-      dataLayer.push({
-        'event': 'add_to_cart',
-        'currency': 'BRL',
-        'items': data.ecommerce.checkout.products
-      });
-      aux = false;
-    }
+    trackAddToCartEvent(data.ecommerce.checkout.products);
   }
 });

@@ -1,5 +1,16 @@
 document.addEventListener('DOMContentLoaded', function() {
-  // VIEW_ITEM
+  const getProductData = (element) => {
+    const productName = element.querySelector('.product-name').innerText.split('×')[0].trim();
+    const itemQuantity = Number(element.querySelector('.product-name').innerText.split('×')[1].trim());
+    const itemPrice = Number(element.querySelector('.product-total').innerText.replace('R$', '').replaceAll('.', '').replace(',', '.'));
+
+    return {
+      name: productName,
+      quantity: itemQuantity,
+      price: itemPrice
+    };
+  };
+
   if (window.location.href.includes('product')) {
     const productName = document.querySelector('.summary .product_title').innerText;
     const productPrice = Number(document.querySelector('.summary .price .amount').innerText.replace('R$', '').replaceAll('.', '').replace(',', '.'));
@@ -11,7 +22,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }]
     });
 
-    // ADD_TO_CART PAGINA PRODUTO
     document.querySelector('.single_add_to_cart_button').addEventListener('click', function() {
       gtag('event', 'add_to_cart', {
         "items": [{
@@ -22,37 +32,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // ADD TO CART TODAS AS PAGINAS
   if (!window.location.href.includes('checkout')) {
     document.querySelectorAll('.add_to_cart_button').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        const productName = btn.parentElement.querySelector('.woocommerce-loop-product__title').innerText;
-        const productPrice = Number(btn.parentElement.querySelector('.price .amount').innerText.replace('R$', '').replaceAll('.', '').replace(',', '.'));
+        const productElement = btn.parentElement;
+        const productData = getProductData(productElement);
 
         gtag('event', 'add_to_cart', {
-          "items": [{
-            "name": productName,
-            "price": productPrice
-          }]
+          "items": [productData]
         });
       });
     });
   }
 
-  // BEGIN_CHECKOUT
   if (window.location.href.includes('checkout') && !window.location.href.includes('order-received')) {
     const googleItems = [];
 
     document.querySelectorAll('.cart_item').forEach(function(item) {
-      const itemName = item.querySelector('.product-name').innerText.split('×')[0].trim();
-      const itemQuantity = Number(item.querySelector('.product-name').innerText.split('×')[1].trim());
-      const itemPrice = Number(item.querySelector('.product-total').innerText.replace('R$', '').replaceAll('.', '').replace(',', '.'));
-
-      googleItems.push({
-        name: itemName,
-        quantity: itemQuantity,
-        price: itemPrice
-      });
+      const productData = getProductData(item);
+      googleItems.push(productData);
     });
 
     gtag('event', 'begin_checkout', {
@@ -60,20 +58,12 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // PURCHASE
   if (window.location.href.includes('order-received')) {
     const googleItems = [];
 
     document.querySelectorAll('.order_item').forEach(function(item) {
-      const itemName = item.querySelector('.product-name').innerText.split('×')[0].trim();
-      const itemQuantity = Number(item.querySelector('.product-name').innerText.split('×')[1].trim());
-      const itemPrice = Number(item.querySelector('.product-total').innerText.replace('R$', '').replaceAll('.', '').replace(',', '.'));
-
-      googleItems.push({
-        name: itemName,
-        quantity: itemQuantity,
-        price: itemPrice
-      });
+      const productData = getProductData(item);
+      googleItems.push(productData);
     });
 
     const transactionId = document.querySelector('.order strong').innerText;
